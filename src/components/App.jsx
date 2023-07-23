@@ -19,6 +19,8 @@ export const App = () => {
     setQuery(event);
     setPage(1);
     setIsLoading(true);
+    setImages([]);
+    setLoadMore(false);
   };
 
   useEffect(() => {
