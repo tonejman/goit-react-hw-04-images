@@ -8,45 +8,37 @@ import Modal from './Modal';
 
 export const App = () => {
   const [images, setImages] = useState([]);
-  const [inputSearch, setInputSearch] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [largeImageURL, setLargeImageURL] = useState('');
   const [, setLoadMore] = useState(false);
 
   const handleSubmit = event => {
-    setInputSearch(event);
-    setCurrentPage(1);
+    setQuery(event);
+    setPage(1);
     setIsLoading(true);
-    setImages([]);
-    setLoadMore(false);
   };
 
   useEffect(() => {
-    if (inputSearch === '') {
+    if (query === '') {
       return;
     }
 
-    const getPictures = async (inputSearch, currentPage) => {
-      setIsLoading(true);
-
+    const fetchImages = async () => {
       try {
-        const { hits, totalHits } = await getParams(inputSearch, currentPage);
+        setIsLoading(true);
 
-        if (hits.length === 0) {
-          setImages(false);
+        const data = await getParams(query, page);
+
+        if (data.hits.length === 0) {
           return;
         }
 
-        if (totalPages < currentPage) {
-          setTotalPages(totalPages => totalPages + 1);
-        }
+        setImages(prevImages => [...prevImages, ...data.hits]);
 
-        setImages(prevImages => [...prevImages, ...hits]);
-
-        // setLoadMore(currentPage < Math.ceil(totalHits / 12));
+        setLoadMore(page < Math.ceil(data.totalHits / 12));
       } catch (error) {
         console.log(error);
       } finally {
@@ -54,20 +46,20 @@ export const App = () => {
       }
     };
 
-    getPictures();
-  }, [inputSearch, currentPage, totalPages]);
+    fetchImages();
+  }, [query, page]);
 
   const handleLoadMore = () => {
     setIsLoading(true);
-    setCurrentPage(prevState => prevState + 1);
+    setPage(prevState => prevState + 1);
   };
 
   const ShowButton = () => {
-    const noMoreImages = getTotalPages === currentPage;
+    const noMoreImages = getTotalPages === page;
 
     if (images.length < 12 || noMoreImages) {
       return false;
-    } else if (inputSearch !== null) {
+    } else if (query !== null) {
       return true;
     }
   };
