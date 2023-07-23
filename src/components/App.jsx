@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useEffect, useState } from 'react';
 import Searchbar from './Searchbar';
 import ImageGallery from './ImageGallery';
 import Button from './Button';
@@ -6,65 +6,64 @@ import getParams, { getTotalPages } from './apiget';
 import { Loader } from './Loader';
 import Modal from './Modal';
 
-export class App extends Component {
-  state = {
-    images: [],
-    inputSearch: '',
-    currentPage: 1,
-    totalPages: 0,
-    isLoading: false,
-    setLoading: false,
-    showModal: false,
-    largeImageURL: '',
+export const App = () => {
+  const [images, setImages] = useState([]);
+  const [inputSearch, setInputSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [largeImageURL, setLargeImageURL] = useState('');
+  const [, setLoadMore] = useState(false);
+
+  const handleSubmit = event => {
+    setInputSearch(event);
+    setCurrentPage(1);
+    setIsLoading(true);
+    setImages([]);
+    setLoadMore(false);
   };
 
-  handleSubmit = event => {
-    this.setState({ inputSearch: event, currentPage: 1, isLoading: true });
-  };
+  useEffect(() => {
+    if (inputSearch === '') {
+      return;
+    }
 
-  async componentDidUpdate(prevProps, prevState) {
-    try {
-      const { inputSearch, currentPage, totalPages } = this.state;
+    const getPictures = async (inputSearch, currentPage) => {
+      setIsLoading(true);
 
-      if (
-        prevState.inputSearch !== inputSearch ||
-        prevState.currentPage !== currentPage
-      ) {
-        const data = await getParams({
-          inputSearch,
-          currentPage,
-        });
+      try {
+        const { hits, totalHits } = await getParams(inputSearch, currentPage);
 
-        if (prevState.inputSearch !== inputSearch) {
-          this.setState({
-            images: data.hits,
-            totalPages: getTotalPages(data.totalHits, 12),
-          });
-
-          return this.setState({ isLoading: false });
+        if (hits.length === 0) {
+          setImages(false);
+          return;
         }
 
         if (totalPages < currentPage) {
-          this.setState({ currentPage: totalPages + 1 });
+          setTotalPages(totalPages => totalPages + 1);
         }
-        this.setState(prevState => ({
-          images: [...prevState.images, ...data.hits],
-        }));
-      }
-    } catch (e) {
-      console.log(e);
-    }
-  }
 
-  handleLoadMore = () => {
-    this.setState(prevState => ({
-      currentPage: prevState.currentPage + 1,
-    }));
+        setImages(prevImages => [...prevImages, ...hits]);
+
+        // setLoadMore(currentPage < Math.ceil(totalHits / 12));
+      } catch (error) {
+        console.log(error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    getPictures();
+  }, [inputSearch, currentPage, totalPages]);
+
+  const handleLoadMore = () => {
+    setIsLoading(true);
+    setCurrentPage(prevState => prevState + 1);
   };
 
-  ShowButton = () => {
-    const { images, inputSearch, currentPage, totalPages } = this.state;
-    const noMoreImages = totalPages === currentPage;
+  const ShowButton = () => {
+    const noMoreImages = getTotalPages === currentPage;
 
     if (images.length < 12 || noMoreImages) {
       return false;
@@ -73,40 +72,32 @@ export class App extends Component {
     }
   };
 
-  onClickImage = url => {
-    this.setState({ showModal: true, largeImageURL: url });
-  };
-  onModalClose = () => {
-    this.setState({ showModal: false, largeImageURL: '' });
+  const onClickImage = url => {
+    setShowModal(true);
+    setLargeImageURL(url);
   };
 
-  onLoader = () => {
-    this.setState({ isLoading: true });
+  const onModalClose = () => {
+    setShowModal(false);
+    setLargeImageURL('');
   };
 
-  render() {
-    const { images, isLoading, showModal, largeImageURL } = this.state;
+  return (
+    <div className="wrapper">
+      <Searchbar onSubmit={handleSubmit} />
+      {isLoading && <Loader name="ThreeDots" />}
+      <ImageGallery
+        images={images}
+        onLoadMore={handleLoadMore}
+        onClickImage={onClickImage}
+      />
+      {ShowButton() && <Button onLoadMore={handleLoadMore} />}
 
-    return (
-      <div className="wrapper">
-        <Searchbar onSubmit={this.handleSubmit} />
-        {isLoading && <Loader name="ThreeDots" />}
-        <ImageGallery
-          images={images}
-          onLoadMore={this.handleLoadMore}
-          onClickImage={this.onClickImage}
-        />
-        {this.ShowButton() && <Button onLoadMore={this.handleLoadMore} />}
-
-        {showModal && (
-          <Modal
-            largeImageURL={largeImageURL}
-            onModalClose={this.onModalClose}
-          />
-        )}
-      </div>
-    );
-  }
-}
+      {showModal && (
+        <Modal largeImageURL={largeImageURL} onModalClose={onModalClose} />
+      )}
+    </div>
+  );
+};
 
 export default App;
